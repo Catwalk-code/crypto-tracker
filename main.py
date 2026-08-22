@@ -17,11 +17,13 @@ class Holding(BaseModel):
     currnet_price: float | None = None
     profit_loss: float | None = None
 
+holdings = []
+next_id = 1
 app = FastAPI()
 
 @app.post("/holdings", response_model=Holding)
 def create_holding(holding: HoldingCreate):
-    "Global is not good practice. Later it will be replaced with PostgreSQL"
+    "Global is not a good practice. Later it will be replaced with PostgreSQL"
     global next_id # We say to Python use value that has been created globally (not in function)
 
     # Copy al fields from holding to the dictionary
@@ -48,6 +50,18 @@ def get_holding(holding_id: int):
             return h
 
     raise HTTPException(status_code=404, detail="holding not found")
+
+@app.delete("/holdings/{holding_id}")
+def delete_holding(holding_id: int):
+    global holdings
+    for i, h in enumerate(holdings):
+        if h.id == holding_id:
+            holdings.pop(i)
+            return {"message": f"Holding {holding_id} deleted"}
+
+    # If not found        
+    raise HTTPException(status_code=404, detail="Holding not found")
+
 
 @app.get("/")
 def root():
