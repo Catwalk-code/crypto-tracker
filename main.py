@@ -1,30 +1,17 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 from fastapi import HTTPException
-import httpx
 
-"""Model for creating of active (without id, currnet price)"""
-class HoldingCreate(BaseModel):
-    coin: str # BTC, ETH, SOL, etc...
-    amount: float
-    buy_price: float # price in USDT
-
-"""Model for answer (with id, and additional fields)"""
-class Holding(BaseModel):
-    id: int
-    coin: str
-    amount: float
-    buy_price: float
-    currnet_price: float | None = None
-    profit_loss: float | None = None
+from models import  Holding, HoldingCreate, PortfolioResponse
+from services import get_current_price
 
 holdings = []
 next_id = 1
 app = FastAPI()
 
+
 @app.post("/holdings", response_model=Holding)
 def create_holding(holding: HoldingCreate):
-    "Global is not a good practice. Later it will be replaced with PostgreSQL"
+    "Using global value is not a good practice. Later it will be replaced with PostgreSQL"
     global next_id # We say to Python use value that has been created globally (not in function)
 
     # Copy al fields from holding to the dictionary
@@ -40,9 +27,13 @@ def create_holding(holding: HoldingCreate):
 
     return new_holding
 
+
+
 @app.get("/holdings", response_model=list[Holding])
 def get_holdings():
     return holdings
+
+
 
 @app.get("/holdings/{holding_id}", response_model=Holding)
 def get_holding(holding_id: int):
@@ -51,6 +42,8 @@ def get_holding(holding_id: int):
             return h
 
     raise HTTPException(status_code=404, detail="holding not found")
+
+
 
 @app.delete("/holdings/{holding_id}")
 def delete_holding(holding_id: int):
@@ -63,28 +56,55 @@ def delete_holding(holding_id: int):
     # If not found        
     raise HTTPException(status_code=404, detail="Holding not found")
 
-async def get_current_price(coin:str) -> float:
-    """Getting current price of coin using Binance API"""
+
+
+@app.get("/portfolio", response_model=PortfolioResponse)
+async def get_portfolio():
+    if not holdings:
+        return PortfolioResponse(
+            total_value=0.0,
+            total_invested=0.0,
+            profit_loss=0.0,
+            profit_percentage=0.0,
+            holdings_count=0.0,
+            holdings=[]
+        )
+
+    total_value = 0.0
+    total_invested = 0.0
+
+    #Update prices for all actives
+    for h in holdings:
+        current_price = await get_current_price(h.coin)
+        h.currnet_price = current_price
+
+        invested = h.amount * h.buy_price
+        current_value = h.amount * current_price
+
+        h.profit_loss = current_value - invested
+
+        total_value+= current_value
+        total_invested+=invested
+
+    profit_loss = total_value - total_invested
+
+    #Protection against divison by zero
+    if total_invested > 0:
+        profit_percentage = (profit_loss / total_invested) * 100
+    else:
+        profit_percentage = 0.0
     
-    #Binance use symols like BTCUSDT, ETHUSDT
-    symbol = f"{coin}USDT"
+    return PortfolioResponse(
+        total_value=total_value,
+        total_invested=total_invested,
+        profit_loss=profit_loss,
+        profit_percentage=round(profit_percentage, 2),
+        holdings_count=len(holdings),
+        holdings=holdings
+    )
 
-    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}"
 
-    '''I found that creating a user using a fuction is a bad idea, the app 
-    will work faster in case if user is created in the start of server. This should be rewrite using lifespan'''
-    async with httpx.AsyncCLient() as client:
-        response = await client.get(url)
-
-        #If not found
-        if response.status_code != 200:
-            print(f"Error when receiving the price {coin}: {response.status_code}")
-            return 0
-        
-        data = response.json()
-        price = float(data["price"])
-        return price
 
 @app.get("/")
 def root():
-    return{"message": "Крипто-портфель трекер"}
+    return{"message": "Crypto Portfolio tracker"}
