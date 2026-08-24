@@ -6,6 +6,7 @@ class HoldingCreate(BaseModel):
     amount: float
     buy_price: float # price in USDT
 
+
 """Model for answer (with id, and additional fields)"""
 class Holding(BaseModel):
     id: int
@@ -14,6 +15,7 @@ class Holding(BaseModel):
     buy_price: float
     currnet_price: float | None = None
     profit_loss: float | None = None
+
 
 class PortfolioResponse(BaseModel):
     total_value: float

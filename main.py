@@ -10,11 +10,20 @@ app = FastAPI()
 
 
 @app.post("/holdings", response_model=Holding)
-def create_holding(holding: HoldingCreate):
-    "Using global value is not a good practice. Later it will be replaced with PostgreSQL"
-    global next_id # We say to Python use value that has been created globally (not in function)
+async def create_holding(holding: HoldingCreate):
+    '''Using global value is not a good practice. Later it will be replaced 
+    with PostgreSQL'''
+    # We say to Python use value that has been created 
+    # globally (not in function)
+    global next_id 
 
-    # Copy al fields from holding to the dictionary
+    price = await get_current_price(holding.coin)
+
+    #If price = None, than coin doesn't exist
+    if price is None:
+        raise HTTPException(status_code=400, detail="Coin not found")
+
+    # Copy all fields from holding to the dictionary
     data = holding.model_dump()
     
     #Add id
@@ -30,7 +39,21 @@ def create_holding(holding: HoldingCreate):
 
 
 @app.get("/holdings", response_model=list[Holding])
-def get_holdings():
+async def get_holdings():
+    for h in holdings:
+        current_price = await get_current_price(h.coin)
+
+        #If None, than coin is not found
+        if current_price is None:
+            h.currnet_price = 0.0 #set 0 so as not to fall
+            h.profit_loss = 0.0
+            continue #Skip this coin add go to the next
+
+        h.currnet_price = current_price
+        invested = h.amount * h.buy_price
+        current_value= h.amount * current_price
+        h.profit_loss = current_value - invested
+
     return holdings
 
 
