@@ -37,7 +37,6 @@ async def create_holding(holding: HoldingCreate):
     return new_holding
 
 
-
 @app.get("/holdings", response_model=list[Holding])
 async def get_holdings():
     for h in holdings:
@@ -57,7 +56,6 @@ async def get_holdings():
     return holdings
 
 
-
 @app.get("/holdings/{holding_id}", response_model=Holding)
 def get_holding(holding_id: int):
     for h in holdings:
@@ -65,7 +63,6 @@ def get_holding(holding_id: int):
             return h
 
     raise HTTPException(status_code=404, detail="holding not found")
-
 
 
 @app.delete("/holdings/{holding_id}")
@@ -78,7 +75,6 @@ def delete_holding(holding_id: int):
 
     # If not found        
     raise HTTPException(status_code=404, detail="Holding not found")
-
 
 
 @app.get("/portfolio", response_model=PortfolioResponse)
@@ -125,7 +121,6 @@ async def get_portfolio():
         holdings_count=len(holdings),
         holdings=holdings
     )
-
 
 
 @app.get("/")
