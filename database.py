@@ -30,19 +30,27 @@ async def init_db():
     """)
 
     await conn.close()
-    print("Database initialized")
 
 async def get_holdings() -> list[dict]:
     conn = await asyncpg.connect(DATABASE_URL)
-    row = await conn.fetch("SELECT * FROM holdings ORDER BY id")
+    rows = await conn.fetch("SELECT * FROM holdings ORDER BY id")
     await conn.close()
-    return [convert_decimal_to_float(dict(r.items())) for r in row]
+    
+    result = []
+    for r in rows:
+        dictionary = dict(r.items())
+        converted = convert_decimal_to_float(dictionary)
+        result.append(converted)
+
+    return result 
 
 async def get_holding_by_id(holding_id: int) -> dict | None:
     conn = await asyncpg.connect(DATABASE_URL)
     row = await conn.fetchrow("SELECT * FROM holdings WHERE id = $1", holding_id)
     await conn.close()
-    return convert_decimal_to_float(dict(row.items()))
+    dictionary = dict(row)
+
+    return convert_decimal_to_float(dictionary)
 
 async def create_holding(coin: str, amount: float, buy_price:float) -> dict:
     conn = await asyncpg.connect(DATABASE_URL)
